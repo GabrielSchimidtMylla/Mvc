@@ -4,7 +4,6 @@
 #if DNX451
 using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Threading.Tasks;
 using Moq;
@@ -28,8 +27,7 @@ namespace Microsoft.AspNet.Mvc.ModelBinding.Test
             var retVal = await binder.BindModelAsync(bindingContext);
 
             // Assert
-            Assert.NotNull(retVal);
-            Assert.Null(retVal.Model);
+            Assert.Null(retVal);
             Assert.False(bindingContext.ModelState.IsValid);
             Assert.Equal("someName", bindingContext.ModelName);
             var error = Assert.Single(bindingContext.ModelState["someName.Key"].Errors);
@@ -50,11 +48,11 @@ namespace Microsoft.AspNet.Mvc.ModelBinding.Test
             var retVal = await binder.BindModelAsync(bindingContext);
 
             // Assert
-            Assert.NotNull(retVal);
-            Assert.Null(retVal.Model);
+            Assert.Null(retVal);
             Assert.False(bindingContext.ModelState.IsValid);
             Assert.Equal("someName", bindingContext.ModelName);
-            Assert.Equal(bindingContext.ModelState["someName.Value"].Errors.First().ErrorMessage, "A value is required.");
+            var error = Assert.Single(bindingContext.ModelState["someName.Value"].Errors);
+            Assert.Equal("A value is required.", error.ErrorMessage);
         }
 
         [Fact]

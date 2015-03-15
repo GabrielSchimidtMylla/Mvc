@@ -40,8 +40,8 @@ namespace Microsoft.AspNet.Mvc.ModelBinding
             // post-processing, e.g. property setters and hooking up validation
             ProcessDto(bindingContext, (ComplexModelDto)result.Model);
             return new ModelBindingResult(
-                bindingContext.Model, 
-                bindingContext.ModelName, 
+                bindingContext.Model,
+                bindingContext.ModelName,
                 isModelSet: true);
         }
 

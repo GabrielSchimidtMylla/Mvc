@@ -28,7 +28,8 @@ namespace ModelBindingWebSite
                 return Task.FromResult(new ModelBindingResult(model, bindingContext.ModelName, true));
             }
 
-            return Task.FromResult(new ModelBindingResult(null, bindingContext.ModelName, false));
+            // Base class will create a ModelBindingResult that exits current ModelBinding loop.
+            return Task.FromResult<ModelBindingResult>(null);
         }
 
         private bool IsSimpleType(Type type)
