@@ -96,7 +96,14 @@ namespace Microsoft.AspNet.Mvc.ModelBinding
                 var result = await binder.BindModelAsync(bindingContext);
                 if (result != null)
                 {
-                    return result;
+                    if (result.IsModelSet || bindingContext.ModelState.ContainsKey(bindingContext.ModelName))
+                    {
+                        return result;
+                    }
+
+                    // Current binder should have been able to bind value.
+                    // Do not return result because it means only "other binders are not applicable".
+                    break;
                 }
             }
 

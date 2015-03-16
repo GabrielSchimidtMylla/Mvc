@@ -4,7 +4,6 @@
 #if DNX451
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 using Moq;
 using Xunit;
@@ -14,7 +13,7 @@ namespace Microsoft.AspNet.Mvc.ModelBinding.Test
     public class KeyValuePairModelBinderTest
     {
         [Fact]
-        public async Task BindModel_MissingKey_ReturnsTrue_AndAddsModelValidationError()
+        public async Task BindModel_MissingKey_ReturnsNull_AndAddsModelValidationError()
         {
             // Arrange
             var valueProvider = new SimpleHttpValueProvider();
@@ -35,7 +34,7 @@ namespace Microsoft.AspNet.Mvc.ModelBinding.Test
         }
 
         [Fact]
-        public async Task BindModel_MissingValue_ReturnsTrue_AndAddsModelValidationError()
+        public async Task BindModel_MissingValue_ReturnsNull_AndAddsModelValidationError()
         {
             // Arrange
             var valueProvider = new SimpleHttpValueProvider();
