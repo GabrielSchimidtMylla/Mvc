@@ -3,8 +3,10 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
+using Microsoft.AspNet.Mvc.ModelBinding.Internal;
 using Microsoft.Framework.Internal;
 
 namespace Microsoft.AspNet.Mvc.ModelBinding
@@ -33,17 +35,35 @@ namespace Microsoft.AspNet.Mvc.ModelBinding
 
         public virtual async Task<ModelBindingResult> BindModelAsync([NotNull] ModelBindingContext bindingContext)
         {
-            var newBindingContext = CreateNewBindingContext(bindingContext,
-                                                            bindingContext.ModelName);
-
+            var newBindingContext = CreateNewBindingContext(bindingContext, bindingContext.ModelName);
             var modelBindingResult = await TryBind(newBindingContext);
-            if (modelBindingResult == null && !string.IsNullOrEmpty(bindingContext.ModelName)
-                && bindingContext.FallbackToEmptyPrefix)
+
+            if (bindingContext.FallbackToEmptyPrefix && !string.IsNullOrEmpty(bindingContext.ModelName))
             {
-                // fallback to empty prefix?
-                newBindingContext = CreateNewBindingContext(bindingContext,
-                                                            modelName: string.Empty);
-                modelBindingResult = await TryBind(newBindingContext);
+                var fallback = modelBindingResult == null;
+                if (!fallback && modelBindingResult.IsModelSet && modelBindingResult.IsEmptyModel)
+                {
+                    // Special case the empty object (i.e. contains at most default values) MutableObjectModelBinder
+                    // may return.
+                    fallback = true;
+
+                    // Remove any validation errors from first attempt; these are likely Required errors.
+                    // Clear entries completely, unlike ModelState.ClearValidationState().
+                    var entries =
+                        DictionaryHelper.FindKeysWithPrefix(bindingContext.ModelState, bindingContext.ModelName);
+                    foreach (var entry in entries.ToList())
+                    {
+                        bindingContext.ModelState.Remove(entry.Key);
+                    }
+                }
+
+                if (fallback)
+                {
+                    // Fall back to empty prefix.
+                    newBindingContext = CreateNewBindingContext(bindingContext,
+                                                                modelName: string.Empty);
+                    modelBindingResult = await TryBind(newBindingContext);
+                }
             }
 
             if (modelBindingResult == null)
@@ -74,7 +94,7 @@ namespace Microsoft.AspNet.Mvc.ModelBinding
                     // {
                     // }
                     //
-                    // In this case, for the model parameter the key would be SimpleType instead of model.SimpleType. 
+                    // In this case, for the model parameter the key would be SimpleType instead of model.SimpleType.
                     // (i.e here the prefix for the model key is empty).
                     // For the id parameter the key would be id.
                     return modelBindingResult;

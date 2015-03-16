@@ -743,7 +743,7 @@ namespace Microsoft.AspNet.Mvc.FunctionalTests
         }
 
         [Fact]
-        public async Task ModelBinding_ValidatesAllPropertiesInModel()
+        public async Task ModelBinding_FallsBackAndValidatesAllPropertiesInModel()
         {
             // Arrange
             var server = TestHelper.CreateServer(_app, SiteName, _configureServices);
@@ -755,9 +755,9 @@ namespace Microsoft.AspNet.Mvc.FunctionalTests
             //Assert
             var json = JsonConvert.DeserializeObject<Dictionary<string, string>>(response);
             Assert.Equal(3, json.Count);
-            Assert.Equal("The Field1 field is required.", json["model.Field1"]);
-            Assert.Equal("The Field2 field is required.", json["model.Field2"]);
-            Assert.Equal("The Field3 field is required.", json["model.Field3"]);
+            Assert.Equal("The Field1 field is required.", json["Field1"]);
+            Assert.Equal("The Field2 field is required.", json["Field2"]);
+            Assert.Equal("The Field3 field is required.", json["Field3"]);
         }
 
         [Fact]
