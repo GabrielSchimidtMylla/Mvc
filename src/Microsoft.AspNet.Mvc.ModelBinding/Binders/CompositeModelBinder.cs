@@ -36,26 +36,17 @@ namespace Microsoft.AspNet.Mvc.ModelBinding
             var newBindingContext = CreateNewBindingContext(bindingContext, bindingContext.ModelName);
             var modelBindingResult = await TryBind(newBindingContext);
 
-            if (bindingContext.FallbackToEmptyPrefix && !string.IsNullOrEmpty(bindingContext.ModelName))
+            if (modelBindingResult == null &&
+                bindingContext.FallbackToEmptyPrefix &&
+                !string.IsNullOrEmpty(bindingContext.ModelName))
             {
-                var fallback = modelBindingResult == null;
-                if (!fallback && !modelBindingResult.IsModelSet && modelBindingResult.Model != null)
-                {
-                    // Special case the empty object (i.e. non-null but contains nothing from value providers)
-                    // MutableObjectModelBinder may return.
-                    fallback = true;
-                }
+                // Remove any validation errors from first attempt; these are likely Required errors.
+                bindingContext.ModelState.Clear();
 
-                if (fallback)
-                {
-                    // Remove any validation errors from first attempt; these are likely Required errors.
-                    bindingContext.ModelState.Clear();
-
-                    // Fall back to empty prefix.
-                    newBindingContext = CreateNewBindingContext(bindingContext,
-                                                                modelName: string.Empty);
-                    modelBindingResult = await TryBind(newBindingContext);
-                }
+                // Fall back to empty prefix.
+                newBindingContext = CreateNewBindingContext(bindingContext,
+                                                            modelName: string.Empty);
+                modelBindingResult = await TryBind(newBindingContext);
             }
 
             if (modelBindingResult == null)
@@ -66,11 +57,7 @@ namespace Microsoft.AspNet.Mvc.ModelBinding
             bindingContext.OperationBindingContext.BodyBindingState =
                 newBindingContext.OperationBindingContext.BodyBindingState;
 
-            // By default, use the original ModelName even if we fell back to the empty prefix.
-            var key = bindingContext.ModelName;
-
-            var isModelSet = modelBindingResult.IsModelSet || modelBindingResult.Model != null;
-            if (isModelSet)
+            if (modelBindingResult.IsModelSet)
             {
                 // Update the model state key if we are bound using an empty prefix and it is a complex type.
                 // This is needed as validation uses the model state key to log errors. The client validation expects
@@ -93,11 +80,15 @@ namespace Microsoft.AspNet.Mvc.ModelBinding
                     // In this case, for the model parameter the key would be SimpleType instead of model.SimpleType.
                     // (i.e here the prefix for the model key is empty).
                     // For the id parameter the key would be id.
-                    key = modelBindingResult.Key;
+                    return modelBindingResult;
                 }
             }
 
-            return new ModelBindingResult(modelBindingResult.Model, key, isModelSet);
+            // Fall through to update the ModelBindingResult's key.
+            return new ModelBindingResult(
+                modelBindingResult.Model,
+                bindingContext.ModelName,
+                modelBindingResult.IsModelSet);
         }
 
         private async Task<ModelBindingResult> TryBind(ModelBindingContext bindingContext)
@@ -109,9 +100,7 @@ namespace Microsoft.AspNet.Mvc.ModelBinding
                 var result = await binder.BindModelAsync(bindingContext);
                 if (result != null)
                 {
-                    if (result.IsModelSet ||
-                        result.Model != null ||
-                        bindingContext.ModelState.ContainsKey(bindingContext.ModelName))
+                    if (result.IsModelSet || bindingContext.ModelState.ContainsKey(bindingContext.ModelName))
                     {
                         return result;
                     }

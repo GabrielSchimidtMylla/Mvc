@@ -33,7 +33,7 @@ namespace Microsoft.AspNet.Mvc.ModelBinding
                     await bindingContext.OperationBindingContext.ModelBinder.BindModelAsync(propertyBindingContext);
                 if (modelBindingResult == null)
                 {
-                    // Could not bind. Add default result to let caller know to pick up default value (if any).
+                    // Could not bind. Add a result so MutableObjectModelBinder will check for [DefaultValue].
                     dto.Results[propertyMetadata] =
                         new ModelBindingResult(model: null, key: propertyModelName, isModelSet: false);
                 }

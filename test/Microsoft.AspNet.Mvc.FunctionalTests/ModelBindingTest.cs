@@ -718,7 +718,7 @@ namespace Microsoft.AspNet.Mvc.FunctionalTests
         }
 
         [Fact]
-        public async Task ModelBinding_LimitsErrorsToMaxErrorCount()
+        public async Task ModelBinding_LimitsErrorsToMaxErrorCount_DoesNotValidateMembersOfMissingProperties()
         {
             // Arrange
             var server = TestHelper.CreateServer(_app, SiteName, _configureServices);
@@ -730,15 +730,16 @@ namespace Microsoft.AspNet.Mvc.FunctionalTests
 
             //Assert
             var json = JsonConvert.DeserializeObject<Dictionary<string, string>>(response);
+
             // 8 is the value of MaxModelValidationErrors for the application being tested.
             Assert.Equal(8, json.Count);
-            Assert.Equal("The Field1 field is required.", json["Field1.Field1"]);
-            Assert.Equal("The Field2 field is required.", json["Field1.Field2"]);
-            Assert.Equal("The Field3 field is required.", json["Field1.Field3"]);
-            Assert.Equal("The Field1 field is required.", json["Field2.Field1"]);
-            Assert.Equal("The Field2 field is required.", json["Field2.Field2"]);
-            Assert.Equal("The Field3 field is required.", json["Field2.Field3"]);
-            Assert.Equal("The Field1 field is required.", json["Field3.Field1"]);
+            Assert.Equal("The Field1 field is required.", json["Field1"]);
+            Assert.Equal("The Field2 field is required.", json["Field2"]);
+            Assert.Equal("The Field3 field is required.", json["Field3"]);
+            Assert.Equal("The Field4 field is required.", json["Field4"]);
+            Assert.Equal("The Field5 field is required.", json["Field5"]);
+            Assert.Equal("The Field6 field is required.", json["Field6"]);
+            Assert.Equal("The Field7 field is required.", json["Field7"]);
             Assert.Equal("The maximum number of allowed model errors has been reached.", json[""]);
         }
 
@@ -1918,7 +1919,7 @@ namespace Microsoft.AspNet.Mvc.FunctionalTests
         }
 
         [Fact]
-        public async Task BindModelAsync_WithIncorrectlyFormattedNestedCollectionValue()
+        public async Task BindModelAsync_WithIncorrectlyFormattedNestedCollectionValue_BindsSingleNullEntry()
         {
             // Arrange
             var server = TestHelper.CreateServer(_app, SiteName, _configureServices);
@@ -1935,9 +1936,11 @@ namespace Microsoft.AspNet.Mvc.FunctionalTests
 
             // Assert
             var result = await ReadValue<UserWithAddress>(response);
+
+            // Reviewers: Slightly odd behavior is specific to unusual error cases. Happens because
+            // MutableObjectModelBinder no longer incorrectly creates a model when value providers have no data.
             var address = Assert.Single(result.Addresses);
-            Assert.Null(address.AddressLines);
-            Assert.Null(address.ZipCode);
+            Assert.Null(address);
         }
 
         [Fact]
@@ -1979,7 +1982,7 @@ namespace Microsoft.AspNet.Mvc.FunctionalTests
         }
 
         [Fact]
-        public async Task BindModelAsync_WithNestedCollectionContainingRecursiveRelation_WithMalformedValue()
+        public async Task BindModelAsync_WithNestedCollectionContainingRecursiveRelation_WithMalformedValue_BindsSingleNullEntry()
         {
             // Arrange
             var server = TestHelper.CreateServer(_app, SiteName, _configureServices);
@@ -1996,9 +1999,11 @@ namespace Microsoft.AspNet.Mvc.FunctionalTests
 
             // Assert
             var result = await ReadValue<PeopleModel>(response);
+
+            // Reviewers: Slightly odd behavior is specific to unusual error cases. Happens because
+            // MutableObjectModelBinder no longer incorrectly creates a model when value providers have no data.
             var person = Assert.Single(result.People);
-            Assert.Null(person.Name);
-            Assert.Null(person.Parent);
+            Assert.Null(person);
         }
 
         [Theory]
