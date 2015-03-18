@@ -7,7 +7,6 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
-using System.Reflection;
 using System.Threading.Tasks;
 using Microsoft.AspNet.Http.Core;
 using Microsoft.AspNet.Testing;
@@ -381,16 +380,16 @@ namespace Microsoft.AspNet.Mvc.ModelBinding
                 .Verifiable();
             testableBinder
                 .Setup(o => o.GetMetadataForProperties(bindingContext))
-                              .Returns(new ModelMetadata[0]);
+                .Returns(new ModelMetadata[0]);
 
             // Act
             var retValue = await testableBinder.Object.BindModelAsync(bindingContext);
 
             // Assert
             Assert.NotNull(retValue);
-            Assert.True(retValue.IsModelSet);
-            Assert.Same(model, retValue.Model);
-            Assert.IsType<Person>(retValue.Model);
+            Assert.False(retValue.IsModelSet); // MutableObjectModelBinder lets caller know DTO got nothing.
+            var returnedPerson = Assert.IsType<Person>(retValue.Model);
+            Assert.Same(model, returnedPerson);
             testableBinder.Verify();
         }
 
@@ -441,9 +440,9 @@ namespace Microsoft.AspNet.Mvc.ModelBinding
 
             // Assert
             Assert.NotNull(retValue);
-            Assert.True(retValue.IsModelSet);
-            Assert.Same(model, retValue.Model);
-            Assert.IsType<Person>(retValue.Model);
+            Assert.False(retValue.IsModelSet); // MutableObjectModelBinder lets caller know DTO got nothing.
+            var returnedPerson = Assert.IsType<Person>(retValue.Model);
+            Assert.Same(model, returnedPerson);
             testableBinder.Verify();
         }
 
