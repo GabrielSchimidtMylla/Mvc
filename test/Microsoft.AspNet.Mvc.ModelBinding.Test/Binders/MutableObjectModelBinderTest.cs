@@ -608,6 +608,7 @@ namespace Microsoft.AspNet.Mvc.ModelBinding
                 "DateOfBirth",
                 "DateOfDeath",
                 "ValueTypeRequired",
+                nameof(Person.ValueTypeRequiredWithDefaultValue),
                 "FirstName",
                 "LastName",
                 "PropertyWithDefaultValue",
@@ -924,53 +925,147 @@ namespace Microsoft.AspNet.Mvc.ModelBinding
             // Assert
             var modelStateDictionary = bindingContext.ModelState;
             Assert.False(modelStateDictionary.IsValid);
-            Assert.Single(modelStateDictionary);
+            Assert.Equal(2, modelStateDictionary.Count);
 
             // Check ValueTypeRequired error.
-            ModelState modelState;
-            Assert.True(modelStateDictionary.TryGetValue("theModel.ValueTypeRequired", out modelState));
+            var modelStateEntry = Assert.Single(
+                modelStateDictionary,
+                entry => entry.Key == "theModel." + nameof(Person.ValueTypeRequired));
+            Assert.Equal("theModel." + nameof(Person.ValueTypeRequired), modelStateEntry.Key);
+
+            var modelState = modelStateEntry.Value;
+            Assert.Equal(ModelValidationState.Invalid, modelState.ValidationState);
 
             var modelError = Assert.Single(modelState.Errors);
             Assert.Null(modelError.Exception);
             Assert.NotNull(modelError.ErrorMessage);
             Assert.Equal("Sample message", modelError.ErrorMessage);
+
+            // Check ValueTypeRequiredWithDefaultValue error.
+            modelStateEntry = Assert.Single(
+                modelStateDictionary,
+                entry => entry.Key == "theModel." + nameof(Person.ValueTypeRequiredWithDefaultValue));
+            Assert.Equal("theModel." + nameof(Person.ValueTypeRequiredWithDefaultValue), modelStateEntry.Key);
+
+            modelState = modelStateEntry.Value;
+            Assert.Equal(ModelValidationState.Invalid, modelState.ValidationState);
+
+            modelError = Assert.Single(modelState.Errors);
+            Assert.Null(modelError.Exception);
+            Assert.NotNull(modelError.ErrorMessage);
+            Assert.Equal("Another sample message", modelError.ErrorMessage);
         }
 
-        [Fact]
-        public void ProcessDto_RequiredFieldNull_RaisesModelErrorWithMessage()
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public void ProcessDto_RequiredFieldNull_RaisesModelErrorWithMessage(bool isModelSet)
         {
             // Arrange
             var model = new Person();
             var containerMetadata = GetMetadataForType(model.GetType());
 
             var bindingContext = CreateContext(containerMetadata, model);
+            var modelStateDictionary = bindingContext.ModelState;
 
             var dto = new ComplexModelDto(containerMetadata, containerMetadata.Properties);
             var testableBinder = new TestableMutableObjectModelBinder();
+
+            // ValueTypeRequiredWithDefaultValue value comes from [DefaultValue] when !isModelSet.
+            var expectedValue = isModelSet ? 0 : 42;
 
             // Make ValueTypeRequired invalid.
             var propertyMetadata = dto.PropertyMetadata.Single(p => p.PropertyName == "ValueTypeRequired");
             dto.Results[propertyMetadata] = new ModelBindingResult(
                 null,
-                isModelSet: true,
+                isModelSet: isModelSet,
                 key: "theModel.ValueTypeRequired");
+
+            // Make ValueTypeRequiredWithDefaultValue invalid
+            propertyMetadata = dto.PropertyMetadata
+                .Single(p => p.PropertyName == nameof(Person.ValueTypeRequiredWithDefaultValue));
+            dto.Results[propertyMetadata] = new ModelBindingResult(
+                model: null,
+                isModelSet: isModelSet,
+                key: "theModel." + nameof(Person.ValueTypeRequiredWithDefaultValue));
 
             // Act
             testableBinder.ProcessDto(bindingContext, dto);
 
             // Assert
-            var modelStateDictionary = bindingContext.ModelState;
             Assert.False(modelStateDictionary.IsValid);
-            Assert.Single(modelStateDictionary);
 
             // Check ValueTypeRequired error.
-            ModelState modelState;
-            Assert.True(modelStateDictionary.TryGetValue("theModel.ValueTypeRequired", out modelState));
+            var modelStateEntry = Assert.Single(
+                modelStateDictionary,
+                entry => entry.Key == "theModel." + nameof(Person.ValueTypeRequired));
+            Assert.Equal("theModel." + nameof(Person.ValueTypeRequired), modelStateEntry.Key);
+
+            var modelState = modelStateEntry.Value;
+            Assert.Equal(ModelValidationState.Invalid, modelState.ValidationState);
 
             var modelError = Assert.Single(modelState.Errors);
             Assert.Null(modelError.Exception);
             Assert.NotNull(modelError.ErrorMessage);
             Assert.Equal("Sample message", modelError.ErrorMessage);
+
+            // Check ValueTypeRequiredWithDefaultValue error.
+            modelStateEntry = Assert.Single(
+                modelStateDictionary,
+                entry => entry.Key == "theModel." + nameof(Person.ValueTypeRequiredWithDefaultValue));
+            Assert.Equal("theModel." + nameof(Person.ValueTypeRequiredWithDefaultValue), modelStateEntry.Key);
+
+            modelState = modelStateEntry.Value;
+            Assert.Equal(ModelValidationState.Invalid, modelState.ValidationState);
+
+            modelError = Assert.Single(modelState.Errors);
+            Assert.Null(modelError.Exception);
+            Assert.NotNull(modelError.ErrorMessage);
+            Assert.Equal("Another sample message", modelError.ErrorMessage);
+
+            Assert.Equal(0, model.ValueTypeRequired);
+            Assert.Equal(expectedValue, model.ValueTypeRequiredWithDefaultValue);
+        }
+
+        [Fact]
+        public void ProcessDto_ProvideRequiredFields_Success()
+        {
+            // Arrange
+            var model = new Person();
+            var containerMetadata = GetMetadataForType(model.GetType());
+
+            var bindingContext = CreateContext(containerMetadata, model);
+            var modelStateDictionary = bindingContext.ModelState;
+
+            var dto = new ComplexModelDto(containerMetadata, containerMetadata.Properties);
+            var testableBinder = new TestableMutableObjectModelBinder();
+
+            // Make ValueTypeRequired valid.
+            var valueTypeRequiredMetadata = dto.PropertyMetadata
+                .Single(p => p.PropertyName == nameof(Person.ValueTypeRequired));
+            dto.Results[valueTypeRequiredMetadata] = new ModelBindingResult(
+                41,
+                isModelSet: true,
+                key: "theModel." + nameof(Person.ValueTypeRequired));
+
+            // Make ValueTypeRequiredWithDefaultValue valid.
+            var notRequiredMetadata = dto.PropertyMetadata
+                .Single(p => p.PropertyName == nameof(Person.ValueTypeRequiredWithDefaultValue));
+            dto.Results[notRequiredMetadata] = new ModelBindingResult(
+                model: 57,
+                isModelSet: true,
+                key: "theModel." + nameof(Person.ValueTypeRequiredWithDefaultValue));
+
+            // Act
+            testableBinder.ProcessDto(bindingContext, dto);
+
+            // Assert
+            Assert.True(modelStateDictionary.IsValid);
+            Assert.Empty(modelStateDictionary);
+
+            // Model gets provided values.
+            Assert.Equal(41, model.ValueTypeRequired);
+            Assert.Equal(57, model.ValueTypeRequiredWithDefaultValue);
         }
 
         [Fact]
@@ -1427,6 +1522,10 @@ namespace Microsoft.AspNet.Mvc.ModelBinding
 
             [Required(ErrorMessage = "Sample message")]
             public int ValueTypeRequired { get; set; }
+
+            [Required(ErrorMessage = "Another sample message")]
+            [DefaultValue(42)]
+            public int ValueTypeRequiredWithDefaultValue { get; set; }
 
             public string FirstName { get; set; }
             public string LastName { get; set; }
