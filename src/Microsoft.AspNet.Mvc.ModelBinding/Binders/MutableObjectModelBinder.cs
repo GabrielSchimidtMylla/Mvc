@@ -54,10 +54,6 @@ namespace Microsoft.AspNet.Mvc.ModelBinding
         {
             var bindingContext = context.ModelBindingContext;
 
-            // Reviewers: The isTopLevelObject value is wrong whenever a binder (e.g. CollectionModelBinder) uses
-            // GetMetadataForType(). Suggest we need ModelMetadata.GetMetadataForElementType() and a special case here
-            // for ComplexModelDto. Impact will likely be mainly extra "empty" (no bound property) objects created.
-            // Worth filing an issue?
             var isTopLevelObject = bindingContext.ModelMetadata.ContainerType == null;
             var hasExplicitAlias = bindingContext.BinderModelName != null;
 

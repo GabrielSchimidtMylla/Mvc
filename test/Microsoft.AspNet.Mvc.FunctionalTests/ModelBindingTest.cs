@@ -1937,8 +1937,9 @@ namespace Microsoft.AspNet.Mvc.FunctionalTests
             // Assert
             var result = await ReadValue<UserWithAddress>(response);
 
-            // Reviewers: Slightly odd behavior is specific to unusual error cases. Happens because
-            // MutableObjectModelBinder no longer incorrectly creates a model when value providers have no data.
+            // Though posted content did not contain any Addresses, it is bound as a single-element List containing
+            // null.  Slightly odd behavior is specific to this unusual error case and fact Address is POCO.
+            // MutableObjectModelBinder does not create model when value providers have no data (unless at top level).
             var address = Assert.Single(result.Addresses);
             Assert.Null(address);
         }
@@ -2000,8 +2001,9 @@ namespace Microsoft.AspNet.Mvc.FunctionalTests
             // Assert
             var result = await ReadValue<PeopleModel>(response);
 
-            // Reviewers: Slightly odd behavior is specific to unusual error cases. Happens because
-            // MutableObjectModelBinder no longer incorrectly creates a model when value providers have no data.
+            // Though posted content did not contain any People, it is bound as a single-element List containing
+            // null.  Slightly odd behavior is specific to this unusual error case and fact People is POCO.
+            // MutableObjectModelBinder does not create model when value providers have no data (unless at top level).
             var person = Assert.Single(result.People);
             Assert.Null(person);
         }

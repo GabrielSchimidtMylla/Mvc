@@ -40,9 +40,6 @@ namespace Microsoft.AspNet.Mvc.ModelBinding
                 bindingContext.FallbackToEmptyPrefix &&
                 !string.IsNullOrEmpty(bindingContext.ModelName))
             {
-                // Remove any validation errors from first attempt; these are likely Required errors.
-                bindingContext.ModelState.Clear();
-
                 // Fall back to empty prefix.
                 newBindingContext = CreateNewBindingContext(bindingContext,
                                                             modelName: string.Empty);
@@ -100,6 +97,9 @@ namespace Microsoft.AspNet.Mvc.ModelBinding
                 var result = await binder.BindModelAsync(bindingContext);
                 if (result != null)
                 {
+                    // Use returned ModelBindingResult if it either indicates model was set or is related to errors.
+                    // The second condition is necessary because some binders add errors that would be duplicated when
+                    // falling back to the empty prefix. Those binders often cannot run twice anyhow.
                     if (result.IsModelSet || bindingContext.ModelState.ContainsKey(bindingContext.ModelName))
                     {
                         return result;

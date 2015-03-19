@@ -59,6 +59,10 @@ namespace Microsoft.AspNet.Mvc.ModelBinding
         /// <returns>
         /// A <see cref="Task"/> which will complete when model binding has completed.
         /// </returns>
+        /// <remarks>
+        /// Other model binders will never run if this method is called. Return <c>null</c> to skip other model binders
+        /// but allow higher-level handling e.g. falling back to empty prefix.
+        /// </remarks>
         protected abstract Task<ModelBindingResult> BindModelCoreAsync([NotNull] ModelBindingContext bindingContext);
 
         /// <inheritdoc />
