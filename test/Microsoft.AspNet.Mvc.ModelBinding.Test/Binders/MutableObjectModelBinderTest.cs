@@ -196,6 +196,46 @@ namespace Microsoft.AspNet.Mvc.ModelBinding
         }
 
         [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public async Task CanCreateModel_ReturnsTrue_ForNonTopLevelModel_BasedOnValueAvailability(bool valueAvailable)
+        {
+            // Arrange
+            var mockValueProvider = new Mock<IValueProvider>(MockBehavior.Strict);
+            mockValueProvider
+                .Setup(provider => provider.ContainsPrefixAsync("SimpleContainer.Simple.Name"))
+                .Returns(Task.FromResult(valueAvailable));
+
+            var typeMetadata = GetMetadataForType(typeof(SimpleContainer));
+            var modelMetadata = typeMetadata.Properties[nameof(SimpleContainer.Simple)];
+            var bindingContext = new MutableObjectBinderContext
+            {
+                ModelBindingContext = new ModelBindingContext
+                {
+                    ModelMetadata = modelMetadata,
+                    ModelName = "SimpleContainer.Simple",
+                    OperationBindingContext = new OperationBindingContext
+                    {
+                        ValidatorProvider = Mock.Of<IModelValidatorProvider>(),
+                        ValueProvider = mockValueProvider.Object,
+                        MetadataProvider = TestModelMetadataProvider.CreateDefaultProvider(),
+                    },
+                    ValueProvider = mockValueProvider.Object,
+                },
+                PropertyMetadata = modelMetadata.Properties,
+            };
+
+            var mutableBinder = new MutableObjectModelBinder();
+
+            // Act
+            var result = await mutableBinder.CanCreateModel(bindingContext);
+
+            // Assert
+            // Result matches whether first Simple property can bind.
+            Assert.Equal(valueAvailable, result);
+        }
+
+        [Theory]
         [InlineData(typeof(TypeWithNoBinderMetadata), false)]
         [InlineData(typeof(TypeWithNoBinderMetadata), true)]
         [InlineData(typeof(TypeWithAtLeastOnePropertyMarkedUsingValueBinderMetadata), false)]
@@ -711,6 +751,28 @@ namespace Microsoft.AspNet.Mvc.ModelBinding
         }
 
         [Fact]
+        public void GetPropertyValidationInfo_WithIndexerProperties_Succeeds()
+        {
+            // Arrange
+            var bindingContext = new ModelBindingContext
+            {
+                // Any type, even an otherwise-simple POCO with an indexer property, would do here.
+                ModelMetadata = GetMetadataForType(typeof(List<Person>)),
+                OperationBindingContext = new OperationBindingContext
+                {
+                    ValidatorProvider = Mock.Of<IModelValidatorProvider>(),
+                },
+            };
+
+            // Act
+            var validationInfo = MutableObjectModelBinder.GetPropertyValidationInfo(bindingContext);
+
+            // Assert
+            Assert.Equal(Enumerable.Empty<string>(), validationInfo.RequiredProperties);
+            Assert.Equal(Enumerable.Empty<string>(), validationInfo.SkipProperties);
+        }
+
+        [Fact]
         [ReplaceCulture]
         public void ProcessDto_BindRequiredFieldMissing_RaisesModelError()
         {
@@ -1041,20 +1103,28 @@ namespace Microsoft.AspNet.Mvc.ModelBinding
             var testableBinder = new TestableMutableObjectModelBinder();
 
             // Make ValueTypeRequired valid.
-            var valueTypeRequiredMetadata = dto.PropertyMetadata
+            var propertyMetadata = dto.PropertyMetadata
                 .Single(p => p.PropertyName == nameof(Person.ValueTypeRequired));
-            dto.Results[valueTypeRequiredMetadata] = new ModelBindingResult(
+            dto.Results[propertyMetadata] = new ModelBindingResult(
                 41,
                 isModelSet: true,
                 key: "theModel." + nameof(Person.ValueTypeRequired));
 
             // Make ValueTypeRequiredWithDefaultValue valid.
-            var notRequiredMetadata = dto.PropertyMetadata
+            propertyMetadata = dto.PropertyMetadata
                 .Single(p => p.PropertyName == nameof(Person.ValueTypeRequiredWithDefaultValue));
-            dto.Results[notRequiredMetadata] = new ModelBindingResult(
+            dto.Results[propertyMetadata] = new ModelBindingResult(
                 model: 57,
                 isModelSet: true,
                 key: "theModel." + nameof(Person.ValueTypeRequiredWithDefaultValue));
+
+            // Also remind ProcessDto about PropertyWithDefaultValue -- as ComplexModelDtoModelBinder would.
+            propertyMetadata = dto.PropertyMetadata
+                .Single(p => p.PropertyName == nameof(Person.PropertyWithDefaultValue));
+            dto.Results[propertyMetadata] = new ModelBindingResult(
+                model: null,
+                isModelSet: false,
+                key: "theModel." + nameof(Person.PropertyWithDefaultValue));
 
             // Act
             testableBinder.ProcessDto(bindingContext, dto);
@@ -1066,6 +1136,7 @@ namespace Microsoft.AspNet.Mvc.ModelBinding
             // Model gets provided values.
             Assert.Equal(41, model.ValueTypeRequired);
             Assert.Equal(57, model.ValueTypeRequiredWithDefaultValue);
+            Assert.Equal(123.456m, model.PropertyWithDefaultValue);     // from [DefaultValue]
         }
 
         [Fact]
@@ -1692,6 +1763,16 @@ namespace Microsoft.AspNet.Mvc.ModelBinding
                        !string.Equals("Excluded2", propertyName, StringComparison.OrdinalIgnoreCase);
                 }
             }
+        }
+
+        public class SimpleContainer
+        {
+            public Simple Simple { get; set; }
+        }
+
+        public class Simple
+        {
+            public string Name { get; set; }
         }
 
         private IServiceProvider CreateServices()

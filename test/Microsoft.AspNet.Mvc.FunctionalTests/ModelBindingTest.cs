@@ -753,12 +753,72 @@ namespace Microsoft.AspNet.Mvc.FunctionalTests
             // Act
             var response = await client.GetStringAsync("http://localhost/Home/ModelWithFewValidationErrors?model=");
 
-            //Assert
+            // Assert
             var json = JsonConvert.DeserializeObject<Dictionary<string, string>>(response);
             Assert.Equal(3, json.Count);
             Assert.Equal("The Field1 field is required.", json["Field1"]);
             Assert.Equal("The Field2 field is required.", json["Field2"]);
             Assert.Equal("The Field3 field is required.", json["Field3"]);
+        }
+
+        [Fact]
+        public async Task ModelBinding_FallsBackAndSuccessfullyBindsStructCollection()
+        {
+            // Arrange
+            var server = TestHelper.CreateServer(_app, SiteName, _configureServices);
+            var client = server.CreateClient();
+            var contentDictionary = new Dictionary<string, string>
+            {
+                { "[0]", "23" },
+                { "[1]", "97" },
+                { "[2]", "103" },
+            };
+            var requestContent = new FormUrlEncodedContent(contentDictionary);
+
+            // Act
+            var response = await client.PostAsync("http://localhost/integers", requestContent);
+
+            // Assert
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            var responseContent = await response.Content.ReadAsStringAsync();
+            var array = JsonConvert.DeserializeObject<int[]>(responseContent);
+
+            Assert.Equal(3, array.Length);
+            Assert.Equal(23, array[0]);
+            Assert.Equal(97, array[1]);
+            Assert.Equal(103, array[2]);
+        }
+
+        [Fact]
+        public async Task ModelBinding_FallsBackAndSuccessfullyBindsPOCOCollection()
+        {
+            // Arrange
+            var server = TestHelper.CreateServer(_app, SiteName, _configureServices);
+            var client = server.CreateClient();
+            var contentDictionary = new Dictionary<string, string>
+            {
+                { "[0].CityCode", "YYZ" },
+                { "[0].CityName", "Toronto" },
+                { "[1].CityCode", "SEA" },
+                { "[1].CityName", "Seattle" },
+            };
+            var requestContent = new FormUrlEncodedContent(contentDictionary);
+
+            // Act
+            var response = await client.PostAsync("http://localhost/cities", requestContent);
+
+            // Assert
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            var responseContent = await response.Content.ReadAsStringAsync();
+            var list = JsonConvert.DeserializeObject<List<City>>(responseContent);
+
+            Assert.Equal(2, list.Count);
+            Assert.Equal(contentDictionary["[0].CityCode"], list[0].CityCode);
+            Assert.Equal(contentDictionary["[0].CityName"], list[0].CityName);
+            Assert.Equal(contentDictionary["[1].CityCode"], list[1].CityCode);
+            Assert.Equal(contentDictionary["[1].CityName"], list[1].CityName);
         }
 
         [Fact]
